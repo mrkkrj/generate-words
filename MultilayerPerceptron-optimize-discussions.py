@@ -55,16 +55,16 @@ random.shuffle(words)
 n1 = int(0.8 * len(words))
 n2 = int(0.9 * len(words))
 
-Xtr, Ytr = build_dataset words[:n1]      # 80% for training
-Xdev, Ydev = build_dataset words[n1:n2]  # 10% for dev opt.
-Xtst, Ytst = build_dataset words[n2:]    # 10% for test
+Xtr, Ytr = build_dataset(words[:n1])      # 80% for training
+Xdev, Ydev = build_dataset(words[n1:n2])  # 10% for dev opt.
+Xtst, Ytst = build_dataset(words[n2:])    # 10% for test
 
 
 # MLP neural net impl.
 #  - source: ................
 
 n_emb = 10     # dim. of the character embedding vectors
-n_hidded = 200 # neurons in the hidden layer
+n_hidden = 200 # neurons in the hidden layer
 
 
 
@@ -129,7 +129,10 @@ b_norm_bias = torch.zeroes((0, n_hidden))
 b_norm_mean_running = torch.zeroes((0, n_hidden))
 b_norm_std_running = torch.ones((0, n_hidden))
 
-parameters = [C, W1, b1, W2, b2, b_norm_gain, b_norm_bias]
+parameters = [C, 
+              W1, #b1, 
+              W2, b2, 
+              b_norm_gain, b_norm_bias]
 print("num param=", sum(p.nelement() for p in parameters))
 
 for p in parameters:
@@ -157,8 +160,8 @@ for i in range(max_steps):
 
     b_norm_mean_i = hpreact.mean(0, keepdim=True)
     b_norm_std_i = hpreact.std(0, keepdim=True)    
-    hpreact = b_norm_gain * (hpreact - b_norm_mean_i) / (b_norm_std_i  + epsilon) + b_norm_bias
-    
+
+    hpreact = b_norm_gain * (hpreact - b_norm_mean_i) / b_norm_std_i + b_norm_bias    
     # note: use epsilon to fix things should b_norm_std_i be zero! (see paper)
     #hpreact = b_norm_gain * (hpreact - b_norm_mean_i) / (b_norm_std_i  + epsilon) + b_norm_bias
 
@@ -221,10 +224,10 @@ def split_loss(split):
         }[split}
     emb = C[x] # (N, vocab_size)
     embcat = emb.view(emb.shape[0], -1) # concat int (N, block_size * n_embed)
-    hpreact = embcat @ W1 + b1
+    hpreact = embcat @ W1 #+ b1
     #hpreact = b_norm_gain * (hpreact - hpreact.mean(0, keepdim=True) / hpreact.std(0, keepdim=True) + b_norm_bias
     # that way we remove dependence on batches here!
-    hpreact = b_norm_gain * (hpreact - b_norm_mean / b_norm_std + b_norm_bias
+    hpreact = b_norm_gain * (hpreact - b_norm_mean) / b_norm_std + b_norm_bias
     h = torch.tanh(hpreact)    # (N, hidden)
     logits = h @ W2 + b2       # (N, vocab_size)
     loss = F.cross_entropy(logits, Yb)
@@ -259,10 +262,4 @@ for _ in range(20):
     # decode & print generated word
     print(''.join(itos[i] for i in out ))
 
-
 # EOF
-
-    
-
-
-

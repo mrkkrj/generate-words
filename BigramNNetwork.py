@@ -53,7 +53,7 @@ W = torch.randn((27, 27), generator=g, requires_grad=True) # normal distr.
 
 # train the NN
 
-for k in range(100)
+for k in range(100):
 
     # forw pass
     xenc = F.one_hot(xs, num_classes=27).float() # one-hot encoding, 27 bc. of num of chars
@@ -77,7 +77,7 @@ for k in range(100)
 
 # sampling from NN model
 
-for i in ramge(5):
+for i in range(5):
     out = []
     ix = 0
 

@@ -50,15 +50,15 @@ random.shuffle(words)
 n1 = int(0.8 * len(words))
 n2 = int(0.9 * len(words))
 
-Xtr, Ytr = build_dataset words[:n1]      # 80% for training
-Xdev, Ydev = build_dataset words[n1:n2]  # 10% for dev opt.
-Xtst, Ytst = build_dataset words[n2:]    # 10% for test
+Xtr, Ytr = build_dataset(words[:n1])      # 80% for training
+Xdev, Ydev = build_dataset(words[n1:n2])  # 10% for dev opt.
+Xtst, Ytst = build_dataset(words[n2:])    # 10% for test
 
 
 # MLP neural net impl.
 
 n_emb = 10     # dim. of the character embedding vectors
-n_hidded = 200 # neurons in the hidden layer
+n_hidden = 200 # neurons in the hidden layer
 
 g = torch.Generator().manual_seed(2147483647) # mk. reproducible
 C  = torch.randn((vocab_size, n_emb),            generator=g)
@@ -137,8 +137,8 @@ for i in range(max_steps):
     lossi.append(loss.log10().item())
     plt.plot(lossi)
 
-b_norm_mean =  b_norm_mean_running                            
-b_norm_std =  b_norm_std_running                            
+bnorm_mean =  bnorm_mean_running                            
+bnorm_std =  bnorm_std_running                            
 
 
 # compare train and dev sets losses
@@ -154,7 +154,7 @@ def split_loss(split):
     embcat = emb.view(emb.shape[0], -1) # concat int (N, block_size * n_embed)
     hpreact = embcat @ W1 + b1
     # that way we remove dependence on batches here!
-    hpreact = b_norm_gain * (hpreact - b_norm_mean / b_norm_std + b_norm_bias
+    hpreact = bnorm_gain * (hpreact - bnorm_mean) / bnorm_std + bnorm_bias
     h = torch.tanh(hpreact)    # (N, hidden)
     logits = h @ W2 + b2       # (N, vocab_size)
     loss = F.cross_entropy(logits, Yb)
@@ -174,7 +174,7 @@ for _ in range(20):
     while True:
         # forward pass of the NN
         emb = C[torch.tensor({context})] # (1, block_size, n_embed)
-        h = torch.tanh(emb.view(1, -1) @ W1 + b1)
+        h = torch.tanh(emb.view(1, -1) @ W1) #+ b1)
         logits = h @ W2 + b2
         probs = F.softmax(logits, dim=1) # output = softmax layer
         # sample from the distr.
@@ -189,10 +189,4 @@ for _ in range(20):
     # decode & print generated word
     print(''.join(itos[i] for i in out ))
 
-
 # EOF
-
-    
-
-
-

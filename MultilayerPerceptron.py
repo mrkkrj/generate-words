@@ -50,16 +50,16 @@ random.shuffle(words)
 n1 = int(0.8 * len(words))
 n2 = int(0.9 * len(words))
 
-Xtr, Ytr = build_dataset words[:n1]      # 80% for training
-Xdev, Ydev = build_dataset words[n1:n2]  # 10% for dev opt.
-Xtst, Ytst = build_dataset words[n2:]    # 10% for test
+Xtr, Ytr = build_dataset(words[:n1])      # 80% for training
+Xdev, Ydev = build_dataset(words[n1:n2])  # 10% for dev opt.
+Xtst, Ytst = build_dataset(words[n2:])    # 10% for test
 
 
 # MLP neural net impl.
 #  - source: ................
 
 n_emb = 10     # dim. of the character embedding vectors
-n_hidded = 200 # neurons in the hidden layer
+n_hidden = 200 # neurons in the hidden layer
 
 # randomly init NN's params
 g = torch.Generator().manual_seed(2147483647) # mk. reproducible
@@ -166,12 +166,4 @@ for _ in range(20):
     # decode & print generated word
     print(''.join(itos[i] for i in out ))
 
-
 # EOF
-
-    
-
-    
-
-
-
