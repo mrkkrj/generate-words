@@ -214,7 +214,8 @@ legends = []
 for i, layer in enumerate(layers[:-1]): # exc. last
     if(isinstance(layer, Tanh)):
         t = layer.out
-        print('layer %d (%10s): mean %+.2f, saturated: %.2f%%' %(i, layer.__class__.__name__, t.mean(), t.std(), (t.mean() > 0.97).float().mean()*100))
+        print('layer %d (%10s): mean %+.2f, saturated: %.2f%%' 
+              % (i, layer.__class__.__name__, t.mean(), t.std(), (t.mean() > 0.97).float().mean()*100))
         hx, hy = torch.histogram(t, density=True)
         plt.plot(hx[:-1].detach(), hy.detach())
         legends.append(f'layer {i} {layer.__class__.__name__}')
@@ -228,7 +229,8 @@ legends = []
 for i, layer in enumerate(layers[:-1]): # exc. last
     if(isinstance(layer, Tanh)):
         t = layer.out.grad
-        print('layer %d (%10s): mean %+.2f, saturated: %.2f%%' %(i, layer.__class__.__name__, t.mean(), t.std(), (t.abs() > 0.97).float().mean()*100))
+        print('layer %d (%10s): mean %+.2f, saturated: %.2f%%' 
+              % (i, layer.__class__.__name__, t.mean(), t.std(), (t.abs() > 0.97).float().mean()*100))
         hx, hy = torch.histogram(t, density=True)
         plt.plot(hx[:-1].detach(), hy.detach())
         legends.append(f'layer {i} {layer.__class__.__name__}')
@@ -241,7 +243,8 @@ plt.figure(figsize(20, 4))
 legends = []
 for i, p in enumerate(parameters):
     if p.ndim == 2: # weigths!
-        print('weight %10s | mean %+f | grad:data ratio %e' %(tuple(p.shape), t.mean(), t.std(), t.std() / p.std()))
+        print('weight %10s | mean %+f | grad:data ratio %e' 
+              % (tuple(p.shape), t.mean(), t.std(), t.std() / p.std()))
         hx, hy = torch.histogram(t, density=True)
         plt.plot(hx[:-1].detach(), hy.detach())
         legends.append(f'{i} {tuple(p.shape)}')

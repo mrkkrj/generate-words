@@ -221,7 +221,7 @@ def split_loss(split):
         'train': (Xtr, Ytr),
         'dev': (Xtr, Ytr),
         'test': (Xtr, Ytr)
-        }[split}
+        }[split]
     emb = C[x] # (N, vocab_size)
     embcat = emb.view(emb.shape[0], -1) # concat int (N, block_size * n_embed)
     hpreact = embcat @ W1 #+ b1
