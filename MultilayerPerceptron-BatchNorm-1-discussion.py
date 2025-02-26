@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline # --> for Jupyter context
 
 #
 # Contains discussions of several optimizations in initialization of the MLP
@@ -125,8 +125,8 @@ b2 = torch.randn(vocab_size,                     generator=g) * 0
 
 # we want pre-activation to be gaussian at init only, need these corrections (see paper)
 b_norm_gain = torch.ones((1, n_hidden))     
-b_norm_bias = torch.zeroes((0, n_hidden))
-b_norm_mean_running = torch.zeroes((0, n_hidden))
+b_norm_bias = torch.zeros((0, n_hidden))
+b_norm_mean_running = torch.zeros((0, n_hidden))
 b_norm_std_running = torch.ones((0, n_hidden))
 
 parameters = [C, 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline # --> for Jupyter context
 
 
 # read all the words
@@ -69,11 +69,12 @@ b2 = torch.randn(vocab_size,                     generator=g) * 0
 
 # Batch Norm. params
 bnorm_gain = torch.ones((1, n_hidden))     
-bnorm_bias = torch.zeroes((0, n_hidden))
-bnorm_mean_running = torch.zeroes((0, n_hidden))
+bnorm_bias = torch.zeros((0, n_hidden))
+bnorm_mean_running = torch.zeros((0, n_hidden))
 bnorm_std_running = torch.ones((0, n_hidden))
 
-parameters = [C, W1, b1, W2, b2, bnorm_gain, bnorm_bias]
+parameters = [C, W1, W2, #b1,
+              b2, bnorm_gain, bnorm_bias]
 print("num param=", sum(p.nelement() for p in parameters))
 
 for p in parameters:
@@ -152,7 +153,7 @@ def split_loss(split):
         }[split]
     emb = C[x] # (N, vocab_size)
     embcat = emb.view(emb.shape[0], -1) # concat int (N, block_size * n_embed)
-    hpreact = embcat @ W1 + b1
+    hpreact = embcat @ W1 #+ b1
     # that way we remove dependence on batches here!
     hpreact = bnorm_gain * (hpreact - bnorm_mean) / bnorm_std + bnorm_bias
     h = torch.tanh(hpreact)    # (N, hidden)

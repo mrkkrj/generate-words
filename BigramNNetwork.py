@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline # --> for Jupyter context
 
 
 # read all the words
