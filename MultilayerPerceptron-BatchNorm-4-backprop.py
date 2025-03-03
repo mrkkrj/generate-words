@@ -133,9 +133,11 @@ for t in [emb, embcat, hpreact_bn, bnmean_i, bndiff, bndiff_sq, bnvar, bnvar_inv
 loss.backward() 
 print(loss)
 
+
 #
 # Excercise 1: backprop throgh all that manually
 #
+
 
 # dlogprobs i.e loss'(logprobs) derivation:
 #   loss = -logprobs[range(n), Yb].mean()
@@ -229,7 +231,7 @@ cmp('dbnorm_bias2', dbnorm_bias, bnorm_bias)       # --> logprobs | exact: true 
 
 # at line: bnraw = bndiff * bnvar_inv  -->  caution: broadcasting!
 dbndiff = bnvar_inv * dbnraw # by chain rule - dLoss/d bndiff = ..., broadcast OK!
-dbnvar_inv = (bndiff * dbnraw),sum(0, keepdim=True) # correction needed
+dbnvar_inv = (bndiff * dbnraw),sum(0, keepdim=True) # broadcast correction needed
 cmp('bnvar_inv', dbnvar_inv, bnvar_inv)                        # --> logprobs | exact: true | approx: True | maxdiff: 0.0
 # dbndiff -> has also a second branch, not yet ready!!!
 
@@ -237,15 +239,54 @@ cmp('bnvar_inv', dbnvar_inv, bnvar_inv)                        # --> logprobs | 
 dbnvar = (-0.5+(bnvar + 1e-5)**-1.5) * dbnvar_inv
 cmp('bnvar', dbnvar, bnvar)                        # --> logprobs | exact: true | approx: True | maxdiff: 0.0
 
-# at line: bnvar = 1/(n-1)*(bndiff_sq).sum(0, keepdim=True) # Bessel corr.
-dbndiff_sq = 
+# at line: bnvar = 1/(n-1)*(bndiff_sq).sum(0, keepdim=True) 
+#  a11 a12
+#  a21 a22
+# -> b1,b2, where: b1=1/(n-1)*(a11 + a21), b2=1/(n-1)*(a12 + a22)
+#  - prev. derivative flows trhough the a's here - (a's will be 1s)
+dbndiff_sq = (1.0/(n-1)) * torch.ones_like(bndiff_sq) * dbnvar
+cmp('bndiff_sq', dbndiff_sq, bndiff_sq)                        # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+
+# at line: bndiff_sq = bndiff**2 
+#   --> # power rule
+dbndiff += (2*bndiff) * dbndiff_sq  # +=, beacuse the 2nd branch
+cmp('bndiff', dbndiff, bndiff)                        # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+
+# at line: bndiff = hpreact_bn - bnmean_i
+#  - bnmean_i is (1,64) others (32,64), so "-"" will broadcast!
+dhpreact_bn = dbndiff.clone()
+dbnmean_i = (-dbndiff).sum(0)
+cmp('bnmean_i', dbnmean_i, bnmean_i)                        # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+
+# at line: bnmean_i = 1/n*hpreact_bn.sum(0, keepdim=True)
+dhpreact_bn += 1.0/n * (torch.ones_like(hpreact_bn) * dbnmean_i)   # +=, beacuse the 2nd branch
+cmp('hpreact_bn', dhpreact_bn, hpreact_bn)                        # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+
+# at line: hpreact_bn = embcat @ W1 + b1 # hidden layer pre-activation 
+dembcat = dhpreact_bn @ W1.T
+dW1 = embcat.T @ dhpreact_bn
+db1 = dhpreact_bn.sum(0)
+cmp('embcat', dembcat, embcat)            # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+cmp('W1', dW1, W1)         # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+cmp('b1', db1, b1)         # --> logprobs | exact: true | approx: True | maxdiff: 0.0
+
+# at line: embcat = emb.view(emb.shape[0], -1) # concatenate
+demb = dembcat.view(emb.shape)
+cmp('emb', demb, emb)            # --> logprobs | exact: true | approx: True | maxdiff: 0.0
 
 
+# at line: emb = C[Xb]  # indexing operation, must udo it
+dC = torch.zeros_like(C)
+for k in range(Xb.shape[0]):
+    for j in range(Xb.shape[1]):
+        ix = Xb[k,j]
+        dC[ix] += demb[k,j]
+cmp('C', dC, C)            # --> logprobs | exact: true | approx: True | maxdiff: 0.0
 
 
-
-......................
-
+#
+# Excercise 2: ----------------
+#
 
 
 

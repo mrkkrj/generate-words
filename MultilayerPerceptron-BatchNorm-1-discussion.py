@@ -61,7 +61,7 @@ Xtst, Ytst = build_dataset(words[n2:])    # 10% for test
 
 
 # MLP neural net impl.
-#  - source: ................
+#  - source: A Neural Probabilistic Language Model, Bengio et al. 2003
 
 n_emb = 10     # dim. of the character embedding vectors
 n_hidden = 200 # neurons in the hidden layer
