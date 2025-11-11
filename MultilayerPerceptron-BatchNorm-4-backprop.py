@@ -558,7 +558,7 @@ for _ in range(20):
         # ---------
         # forward pass:
         # Embedding
-        emb = C[torch.tensor({context})] # (1, block_size, d)
+        emb = C[torch.tensor([context])] # (1, block_size, d)
         embcat = emb.view(emb.shape[0], -1) # concat into (N. block_size * n_embd)
         hpreact = embcat @ W1 + b1
         hpreact = bnorm_gain * (hpreact - bnorm_mean) * (bnorm_var + 1e-5)**-0.5 + bnorm_bias

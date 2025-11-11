@@ -174,7 +174,7 @@ for _ in range(20):
     context = [0] * block_size # init with all ...
     while True:
         # forward pass of the NN
-        emb = C[torch.tensor({context})] # (1, block_size, n_embed)
+        emb = C[torch.tensor([context])] # (1, block_size, n_embed)
         h = torch.tanh(emb.view(1, -1) @ W1) #+ b1)
         logits = h @ W2 + b2
         probs = F.softmax(logits, dim=1) # output = softmax layer

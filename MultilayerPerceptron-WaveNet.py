@@ -26,7 +26,8 @@ random.seed(44)
 random.shuffle(words)
 
 # build the dataset
-block_size = 3 # context length - how many chars needed to predict the next one?
+#block_size = 3 # context length - how many chars needed to predict the next one?
+block_size = 8 # -> even, to be able to build a binary tree !
 
 def build_dataset(words):
     X, Y = [], []
@@ -87,9 +88,13 @@ class BatchNorm1d:
 
     def __call__(self, x):
         # forward pass
-        if self.training:            
-            xmean = x.mean(0, keepdim=True) # mean values from batch!
-            xvar = x.var(0, keepdim=True, unbiased=True)
+        if self.training:
+            if x.ndim == 2:
+                dim = 0 # dim we want reduce over (old MLP impl...)
+            elif x.ndim == 3:
+                dim = (0, 1) # over both initial dims (for WaveNet impl!!!)
+            xmean = x.mean(dim, keepdim=True) # mean values from batch!
+            xvar = x.var(dim, keepdim=True, unbiased=True)
         else:
             xmean = self.running_mean
             xvar = self.running_var
@@ -113,6 +118,57 @@ class Tanh:
     def parameters(self):
         return []        
 
+# new:
+
+# ------------------------------------------------------------------------------
+class Embedding:
+    def __init__(self, num_embeddings, embedding_dim):
+        self.weight = torch.randn((num_embeddings, embedding_dim))
+    def __call__(self, IX):
+        self.out = self.weight[IX]
+        return self.out
+    def parameters(self):
+        return [self.weight]  
+    
+# ------------------------------------------------------------------------------
+class Flatten:       
+    def __call__(self, x):
+        self.out = x.view(x.shape[0], -1) # -1: torch will find suitable dim for that!
+        return self.out
+    def parameters(self):
+        return [] 
+
+# ------------------------------------------------------------------------------
+class FlattenConsecutive:
+    def __init__(self, n):
+        self.n = n # number of elements to concatenate in the last dim!        
+
+    def __call__(self, x):
+        B, T, C = x.shape
+        x = x.view(B, T//self.n, C*self.n) 
+        if x.shape[1] == 1:
+            x = x.squeeze(1) # fallback to Flatten!!!
+        self.out = x                
+        return self.out
+    
+    def parameters(self):
+        return [] 
+            
+# ------------------------------------------------------------------------------
+class Sequential:
+    def __init__(self, layers):
+        self.layers = layers
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        self.out = x
+        return self.out
+    def parameters(self):
+        # params of all layers, streched into one list
+        return [p for layer in self.layers for p in layer.parameters()] 
+    
+
+
 
 #
 # MLP neural net 
@@ -121,24 +177,64 @@ class Tanh:
 torch.manual_seed(44) # mk. reproducible
 
 n_emb = 10      # dim. of the character embedding vectors
-n_hidden = 200  # neurons in the hidden layer
+#n_hidden = 200  # neurons in the hidden layer
+n_hidden = 68  # changed for FlattenConsecutive, to reduce no of params to the previous count (i.e. Flatten())
 
-C  = torch.randn((vocab_size, n_emb))
+# -> now increase the size of the model -> longer trainig, better loss value!
+n_emb =  24     # dim. of the character embedding vectors
+n_hidden = 128  # neurons in the hidden layer
 
-layers = [
+#C  = torch.randn((vocab_size, n_emb))
+model = Sequential([
+    Embedding(vocab_size, n_emb), # added
+    #Flatten(), # added
+    FlattenConsecutive(block_size), # like plain Flatten()!    
     Linear(n_emb * block_size, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
     Linear(n_hidden, vocab_size),
-]
+])
+
+
+#
+#  - WaveNet's idea - don't squash contect inito a single vector but use a binary tree!!!
+#
+
+# note - matrix mult works only on the last dim, the dims before are left unchanged!
+#  - e.g.: torch.randn(4, 5, 2, 80) @ torch.randnd(80, 200) 
+#           -> shape: [4, 5, 2, 200]
+#
+#  we want to group 8 vals like: (1 2) (3 4) (5 6) (7 8) so we will take:
+#   - torch.randn(4, 4, 20) -> i.e. 4 groups of 2, and each of them is 10-dim vector!
+#       @ torch.randn(20, 200)
+#  - So we need extended Flatten 
+# e = torch.randn(4, 8, 10) -> we want it to be (4, 4, 20)! 
+#    -> take: e[:, ::2, :] - even elems, e[:, 1::2, :] - odd elems, AND concat them!
+#     - note: 1::2 - start with 1, step=2 (odd elems), ::2 - start with 0, step size=2
+#   -> or just request new dims from view() !!!
+
+#  ----> SO: group input elems in pairs, 3 times!
+model = Sequential([
+    Embedding(vocab_size, n_emb), # added
+    FlattenConsecutive(2), Linear(n_emb * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+    FlattenConsecutive(2), Linear(n_hidden * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+    FlattenConsecutive(2), Linear(n_hidden * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+    Linear(n_hidden, vocab_size),
+])
 
 with torch.no_grad():
     # last layer: make less confident!    
-    layers[-1].weight *= 0.1 #  -> IF: no batch norm.
+    model.layers[-1].weight *= 0.1 #  -> IF: no batch norm.
     #layers[-1].gamma *= 0.1 # we use BatchNorm now! --> OPEN::: why not this one???
 
-parameters = [C] + [p for layer in layers for p in layer.parameters()]
+#parameters = [C] + [p for layer in layers for p in layer.parameters()]
+parameters = model.parameters()
 print("num param=", sum(p.nelement() for p in parameters))
 for p in parameters:
     p.requires_grad = True
+
+# Debug: inspect shapes:
+for layer in model.layers:
+    print(layer.__class__.__name__, ':', tuple(layer.out.shape))
+
 
 
 # same optimizations as last time
@@ -153,15 +249,12 @@ for i in range(max_steps):
     Xb, Yb = Xtr[ix], Ytr[ix] # batch X,Y
 
     # forward pass
-    emb = C[Xb] # emb. chars in vectors
-    embcat = emb.view(emb.shape[0], -1) # concatenate
-    for layer in layers:
-        x = layer(x)
-    loss = F.cross_entropy(x, Yb)
+    # emb = C[Xb] # emb. chars in vectors
+    # x = emb.view(emb.shape[0], -1) # concatenate
+    logits = model(Xb) 
+    loss = F.cross_entropy(logits, Yb) # loss fn
 
     # backward pass
-    for layer in layers:
-        layer.out.retain_grad() # for tests - needed for histograms
     for p in parameters:
         p.grad = None        
     loss.backward() 
@@ -176,67 +269,57 @@ for i in range(max_steps):
         print(f'{i:7d}/{max_steps:7d}: {loss.item():4f}')
     lossi.append(loss.log10().item())
 
+# show losses
+plt.plot(lossi)
+
+# plot the means  of 1000 lossi values
+plt.plot(torch.tensor(lossi).view(-1, 1000).mean(1))
 
 
+# put layers into eval mode (needed for batchnorm esp.!)
+for layer in model.layers:
+    layer.training = False
 
-..................
+@torch.no_grad() # disable gradient tracking
+def split_loss(split):
+    x,y = {
+        'train': (Xtr, Ytr),
+        'dev': (Xtr, Ytr),
+        'test': (Xtr, Ytr)
+        }[split]
+    # emb = C[x] # (N, vocab_size)
+    # x = emb.view(emb.shape[0], -1) # concat int (N, block_size * n_embed)
+    logits = model(x)
+    loss = F.cross_entropy(logits, Yb)
+    print(split, loss.item())
 
+split_loss('train')
+split_loss('dev')
 
-#
-# visualize histograms
-#  - Diagnostic Toos: to check how the network parameters are working!
+# sample form the model
 
-# visualize histograms - tanh.out
-plt.figure(figsize(20, 4))
-legends = []
-for i, layer in enumerate(layers[:-1]): # exc. last
-    if(isinstance(layer, Tanh)):
-        t = layer.out
-        print('layer %d (%10s): mean %+.2f, saturated: %.2f%%' 
-              % (i, layer.__class__.__name__, t.mean(), t.std(), (t.mean() > 0.97).float().mean()*100))
-        hx, hy = torch.histogram(t, density=True)
-        plt.plot(hx[:-1].detach(), hy.detach())
-        legends.append(f'layer {i} {layer.__class__.__name__}')
-plt.legend(legends)
-plt.title('activation distribution')
+for _ in range(20):
+    out = []
+    context = [0] * block_size # init with all ...
+    while True:
+        # forward pass of the NN
+        # emb = C[torch.tensor([context])] # (1, block_size, n_embed)
+        # x = emb.view(1, -1) # concatenate the vectors
+        # for layer in layers:
+        #     x = layer(x)
+        # logits = x
+        logits = model(torch.tensor([context]))
+        probs = F.softmax(logits, dim=1) # output = softmax layer
+        # sample from the distr.
+        ix = torch.multinomial(probs, num_samples=1, generator=g).item()
+        # shift context window
+        context = context[1:] + [ix]
+        out.append(ix)
+        # EOW special char?
+        if ix == 0:
+            break
 
-
-# visualize histograms - gradients
-plt.figure(figsize(20, 4))
-legends = []
-for i, layer in enumerate(layers[:-1]): # exc. last
-    if(isinstance(layer, Tanh)):
-        t = layer.out.grad
-        print('layer %d (%10s): mean %+.2f, saturated: %.2f%%' 
-              % (i, layer.__class__.__name__, t.mean(), t.std(), (t.abs() > 0.97).float().mean()*100))
-        hx, hy = torch.histogram(t, density=True)
-        plt.plot(hx[:-1].detach(), hy.detach())
-        legends.append(f'layer {i} {layer.__class__.__name__}')
-plt.legend(legends)
-plt.title('gradient distribution')
-
-
-# visualize histograms - weights gradient
-plt.figure(figsize(20, 4))
-legends = []
-for i, p in enumerate(parameters):
-    if p.ndim == 2: # weigths!
-        print('weight %10s | mean %+f | grad:data ratio %e' 
-              % (tuple(p.shape), t.mean(), t.std(), t.std() / p.std()))
-        hx, hy = torch.histogram(t, density=True)
-        plt.plot(hx[:-1].detach(), hy.detach())
-        legends.append(f'{i} {tuple(p.shape)}')
-plt.legend(legends)
-plt.title('weigths gradient distribution')
-
-# visualize histograms - update ratios for weights
-plt.figure(figsize(20, 4))
-legends = []
-for i, p in enumerate(parameters):
-    if p.ndim == 2: # weigths!
-        plt.plot([ud[j][i] for j in range(len(ud))])
-        legends.append('param %d' % i)
-plt.plot([0, len(ud)], [-3, -3], 'k') # these ratios should be ~1e-3, indicate it on plot! (good rough heuristic)
-plt.legend(legends)
+    # decode & print generated word
+    print(''.join(itos[i] for i in out ))
 
 # EOF
