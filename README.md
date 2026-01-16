@@ -15,20 +15,23 @@ Following scrips are at present there:
 3. *MultilayerPerceptron-BatchNorm-1-discussion.py* - contains discussion of several possible optimizations to the MLP network from the previous step. As result, the Batch Norm optimization is chosen for further implementation
 
 4. *MultilayerPerceptron-BatchNorm-2.py* - adds a Batch Norm layer to our previous MLP network implementation
+
 ![BN formulas](<BN article formulas.jpg>)
 
 5. *MultilayerPerceptron-BatchNorm-3.py* - refactors the above implementations adding classes which can be composed to implement a NN architecture, similiar to the classes found in the *PyTorch* framework
 
 6. *MultilayerPerceptron-BatchNorm-4-backprop.py* - some excercises in manual backpropagation on our previous NN to build an understanding of the technique
+
 ![backprop excercise](<Batchnorm-4-backprop - Exc.3.jpg>)
 
 7. *MultilayerPerceptron-WaveNet.py* - changes the MLP implementation from step 5 by using WaveNet's idea 
-   -> don't squash context inito a single vector but use a binary tree!!
-   -> OPEN TODO::: explain more !!!!!!!!!
+   - don't squash context inito a single vector but use a binary tree!!
+   - OPEN TODO::: explain more !!!!!!!!!
+   
 ![VaweNet layers](<WaveNet layers representation.jpg>)
 
 An additional series of implementations starts with:
 
 1. *NanoGpt-Train.py* - a basic bigram model for a new dataset (*tinyshakesperate.txt*) 
-    -> OPEN TODO:: starting point for GPT reimplementation ???
+    - OPEN TODO:: starting point for GPT reimplementation ???
 
