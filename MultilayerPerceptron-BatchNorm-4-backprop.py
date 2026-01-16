@@ -134,7 +134,7 @@ print(loss)
 
 
 #
-# Excercise 1: backprop throgh all that manually
+# Excercise 1: backprop through all that manually
 #
 
 
