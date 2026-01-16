@@ -27,11 +27,15 @@ Following scrips are at present there:
 7. *MultilayerPerceptron-WaveNet.py* - changes the MLP implementation from step 5 by using WaveNet's idea 
    - don't squash context inito a single vector but use a binary tree!!
    - OPEN TODO::: explain more !!!!!!!!!
-   
+
 ![VaweNet layers](<WaveNet layers representation.jpg>)
 
-An additional series of implementations starts with:
+## nano GPT
+
+An additional series of implementations was initiated and currently starts with:
 
 1. *NanoGpt-Train.py* - a basic bigram model for a new dataset (*tinyshakesperate.txt*) 
     - OPEN TODO:: starting point for GPT reimplementation ???
+
+t.b.c.
 
